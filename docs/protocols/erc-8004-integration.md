@@ -25,7 +25,7 @@ This document describes how the api.agentauri.ai backend integrates with the ERC
 The ERC-8004 standard defines three on-chain registries that establish the foundation for the agent economy:
 
 1. **IdentityRegistry**: Who is the agent? (ERC-721 based portable identifiers)
-2. **ReputationRegistry**: How is the agent evaluated? (Scores 0-100 with tags)
+2. **ReputationRegistry**: How is the agent evaluated? (Signed fixed-point feedback values, decimals, and optional tags; not limited to 0-100)
 3. **ValidationRegistry**: How is the agent's work validated? (TEE, ZK proofs, re-execution)
 
 ## Contract Addresses
@@ -79,9 +79,11 @@ The ERC-8004 standard defines three on-chain registries that establish the found
 function giveFeedback(uint256 agentId, uint8 score, bytes32 tag1, bytes32 tag2,
                       string fileuri, bytes32 filehash, bytes feedbackAuth);
 
-// NEW signature
-function giveFeedback(uint256 agentId, uint8 score, string tag1, string tag2,
-                      string endpoint, string feedbackURI, bytes32 feedbackHash);
+// Current Draft signature (value and decimals replace the old uint8 score)
+function giveFeedback(uint256 agentId, int128 value, uint8 valueDecimals,
+                      string calldata tag1, string calldata tag2,
+                      string calldata endpoint, string calldata feedbackURI,
+                      bytes32 feedbackHash) external;
 ```
 
 **Why**: Removes friction; spam resistance moved to off-chain aggregation.
@@ -301,11 +303,11 @@ pub async fn handle_metadata_set_event(event: MetadataSetEvent) {
 
 ### Purpose
 
-Tracks agent performance through client feedback. Clients submit scores (0-100) with optional semantic tags and supporting files.
+Tracks agent performance through client feedback. The current ERC-8004 Draft uses an `int128 value` with `uint8 valueDecimals` (0-18) and optional text tags, rather than a mandatory 0-100 `uint8` score.
 
-> **📋 Jan 2026 Update**: Tags are now `string` instead of `bytes32`. Pre-authorization (`feedbackAuth`) has been removed.
+> **Specification compatibility:** The interface and event examples immediately below still reflect an earlier/project-specific ABI (`uint8 score`, `uint256 feedbackIndex`, `respondToFeedback`, and `getSummary` without a client-address filter). **Do not copy them as the current ERC-8004 interface.** Consult the [canonical Draft](https://eips.ethereum.org/EIPS/eip-8004#reputation-registry) and verify the ABI of any deployed contract. Current feedback is permissionless except for the agent owner/operator, uses `int128 value` with `uint8 valueDecimals`, and allows reviewer-address filtering. This note documents the discrepancy; it does not claim the AgentAuri backend has migrated.
 
-### Contract Interface
+### Legacy Contract Interface (not the current ERC-8004 ABI)
 
 ```solidity
 interface IReputationRegistry {
